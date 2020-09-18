@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Operations Version="1.0" xmlns="http://schemas.microsoft.com/sqlserver/dac/Serialization/2012/02">
+  <Operation Name="Rename Refactor" Key="37efdefd-5c1d-4f7f-ac3f-597f1f795dd7" ChangeDateTime="09/15/2020 11:36:41">
+    <Property Name="ElementName" Value="[dbo].[FlickrPhoto].[ispublic]" />
+    <Property Name="ElementType" Value="SqlSimpleColumn" />
+    <Property Name="ParentElementName" Value="[dbo].[FlickrPhoto]" />
+    <Property Name="ParentElementType" Value="SqlTable" />
+    <Property Name="NewName" Value="Ispublic" />
+  </Operation>
+</Operations>
