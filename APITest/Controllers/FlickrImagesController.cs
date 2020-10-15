@@ -49,13 +49,37 @@ namespace APITest.Controllers
             return await flickrImagesData.GetFlickrImagesByLatLong(latitude, longitude, null);
         }
 
-        
+
         [HttpGet]
         [Route("GetImageBySearchNameForRegisteredUser")]
         public async Task<IEnumerable<DisplayImage>> GetPhotoBySearchNameForRegisteredUserAsync(string name)
         {
             var userId = User.Identity.GetUserId();
             return await flickrImagesData.GetFlickrImagesBySearchNameAsync(name, userId);
+        }
+
+        [HttpDelete]
+        [Route("DeleteImage")]
+        public async Task<IHttpActionResult> DeleteImage([FromBody] int id)
+        {
+
+            var userId = User.Identity.GetUserId();
+            var photo = await flickrImagesData.GetPhotoById(id);
+            if (photo == null)
+            {
+                return BadRequest("Photo Not Found!");
+            }
+            bool isDeleted = await flickrImagesData.DeleteFlickrPhotoAsync(userId, id);
+            return Json(new { isDeleted = isDeleted });
+        }
+
+        [HttpDelete]
+        [Route("DeleteAllImagesBySearchName")]
+        public async Task<IHttpActionResult> DeleteImageBySearchName(string searchName)
+        {
+            var userId = User.Identity.GetUserId();
+            bool isDeleted = await flickrImagesData.DeleteFlickrPhotosBySearchNameAsync(userId, searchName);
+            return Json(new { isDeleted = isDeleted });
         }
 
 

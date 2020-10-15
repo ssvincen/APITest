@@ -1,22 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Threading.Tasks;
-using System.Web;
-using System.Web.Http;
-using System.Web.Http.ModelBinding;
+﻿using APITest.BI;
+using APITest.Models;
+using APITest.Providers;
+using APITest.Results;
 using Microsoft.AspNet.Identity;
 using Microsoft.AspNet.Identity.EntityFramework;
 using Microsoft.AspNet.Identity.Owin;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Cookies;
 using Microsoft.Owin.Security.OAuth;
-using APITest.Models;
-using APITest.Providers;
-using APITest.Results;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
+using System.Web;
+using System.Web.Http;
+using static APITest.ApplicationUserManager;
 
 namespace APITest.Controllers
 {
@@ -26,16 +28,25 @@ namespace APITest.Controllers
     {
         private const string LocalLoginProvider = "Local";
         private ApplicationUserManager _userManager;
+        private ApplicationRoleManager _roleManager;
+        private readonly IEmailProvider emailProvider;
+        public const int maxRetry = 3;
+
 
         public AccountController()
         {
         }
 
         public AccountController(ApplicationUserManager userManager,
-            ISecureDataFormat<AuthenticationTicket> accessTokenFormat)
+            ISecureDataFormat<AuthenticationTicket> accessTokenFormat,
+            ApplicationRoleManager roleManager,
+            IEmailProvider email)
         {
             UserManager = userManager;
             AccessTokenFormat = accessTokenFormat;
+            RoleManager = roleManager;
+            emailProvider = email;
+
         }
 
         public ApplicationUserManager UserManager
@@ -47,6 +58,18 @@ namespace APITest.Controllers
             private set
             {
                 _userManager = value;
+            }
+        }
+
+        public ApplicationRoleManager RoleManager
+        {
+            get
+            {
+                return _roleManager ?? Request.GetOwinContext().GetUserManager<ApplicationRoleManager>();
+            }
+            private set
+            {
+                _roleManager = value;
             }
         }
 
@@ -94,21 +117,56 @@ namespace APITest.Controllers
         [Route("Register")]
         public async Task<IHttpActionResult> Register(RegisterBindingModel model)
         {
+            string roleName = "Basic";
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            var user = new ApplicationUser() { FirstName = model.FirstName, Surname = model.Surname, UserName = model.Email, Email = model.Email };
+            var user = new ApplicationUser() { FirstName = model.FirstName, Surname = model.Surname, UserName = model.Email, Email = model.Email, };
 
             IdentityResult result = await UserManager.CreateAsync(user, model.Password);
+
+            if (!await RoleManager.RoleExistsAsync(roleName))
+            {
+                await RoleManager.CreateAsync(new IdentityRole(roleName));
+            }
 
             if (!result.Succeeded)
             {
                 return GetErrorResult(result);
             }
+            await UserManager.AddToRoleAsync(user.Id, roleName);
 
+
+
+            string code = await UserManager.GenerateEmailConfirmationTokenAsync(user.Id);
+            var returnPath = HttpContext.Current.Request.UrlReferrer.AbsoluteUri;
+            var absolutePath = HttpContext.Current.Request.UrlReferrer.AbsolutePath;
+            string url = returnPath.Replace(absolutePath, string.Empty);
+            var callbackUrl = $"{url}/ConfirmEmail?username={user.Email}&code={code}";
+
+            string body = $"Hi {model.FirstName} <br><br> Please confirm your account by clicking <a href=\"" + callbackUrl + "\">here</a><br><br> Regards<br>Immedia";
+            await emailProvider.SendAsync(user.Email, "Confirm your account", body, maxRetry);
             return Ok();
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
+        [Route("ConfirmEmail")]
+        public async Task<IHttpActionResult> ConfirmEmail(string username, string code)
+        {
+            if (username == null || code == null)
+            {
+                return BadRequest(ModelState);
+            }
+            var user = await UserManager.FindByEmailAsync(username);
+            if (user == null)
+            {
+                return BadRequest(ModelState);
+            }
+            var result = await UserManager.ConfirmEmailAsync(user.Id, code);
+            return Ok(result.Succeeded ? "ConfirmEmail" : "Error");
         }
 
         // GET api/Account/UserInfo
@@ -185,7 +243,7 @@ namespace APITest.Controllers
 
             IdentityResult result = await UserManager.ChangePasswordAsync(User.Identity.GetUserId(), model.OldPassword,
                 model.NewPassword);
-            
+
             if (!result.Succeeded)
             {
                 return GetErrorResult(result);
@@ -318,9 +376,9 @@ namespace APITest.Controllers
             if (hasRegistered)
             {
                 Authentication.SignOut(DefaultAuthenticationTypes.ExternalCookie);
-                
-                 ClaimsIdentity oAuthIdentity = await user.GenerateUserIdentityAsync(UserManager,
-                    OAuthDefaults.AuthenticationType);
+
+                ClaimsIdentity oAuthIdentity = await user.GenerateUserIdentityAsync(UserManager,
+                   OAuthDefaults.AuthenticationType);
                 ClaimsIdentity cookieIdentity = await user.GenerateUserIdentityAsync(UserManager,
                     CookieAuthenticationDefaults.AuthenticationType);
 
@@ -378,7 +436,7 @@ namespace APITest.Controllers
             return logins;
         }
 
-        
+
 
         // POST api/Account/RegisterExternal
         [OverrideAuthentication]
@@ -408,10 +466,54 @@ namespace APITest.Controllers
             result = await UserManager.AddLoginAsync(user.Id, info.Login);
             if (!result.Succeeded)
             {
-                return GetErrorResult(result); 
+                return GetErrorResult(result);
             }
             return Ok();
         }
+
+
+        //Role Management
+
+        [HttpPost]
+        [HostAuthentication(DefaultAuthenticationTypes.ExternalBearer)]
+        [Route("CreateRole")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IdentityResult> CreateRoleAsync(string roleName)
+        {
+            if (!await RoleManager.RoleExistsAsync(roleName))
+            {
+                return await RoleManager.CreateAsync(new IdentityRole(roleName));
+            }
+            return null;
+        }
+
+        [HttpPost]
+        [HostAuthentication(DefaultAuthenticationTypes.ExternalBearer)]
+        [Route("User/Role")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IdentityResult> AssignUserToRoleAsync(string userid, string roleName)
+        {
+            return await UserManager.AddToRoleAsync(userid, roleName);
+        }
+
+        [HostAuthentication(DefaultAuthenticationTypes.ExternalBearer)]
+        [Route("GetRoles")]
+        [Authorize(Roles = "Admin")]
+        public IEnumerable<IdentityRole> GetRoles()
+        {
+            var roles = RoleManager.Roles.ToList();
+            return roles;
+        }
+
+        [HttpDelete]
+        [HostAuthentication(DefaultAuthenticationTypes.ExternalBearer)]
+        [Route("User/Role")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IdentityResult> DeleteRoleAsync(string userid, string roleName)
+        {
+            return await UserManager.RemoveFromRoleAsync(userid, roleName);
+        }
+
 
         protected override void Dispose(bool disposing)
         {

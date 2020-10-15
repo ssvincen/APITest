@@ -71,9 +71,11 @@
     <Build Include="Table\FlickrPhoto.sql" />
     <Build Include="UserDefinedTableType\FlickrPhoto.UserDefinedTableType.sql" />
     <Build Include="StoredProcedures\sprAllSaveFlickrPhoto.StoredProcedure.sql" />
-    <Build Include="StoredProcedures\sprSaveFlickrPhoto.StoredProcedure.sql" />
+    <Build Include="StoredProcedures\sprUpSertFlickrPhoto.StoredProcedure.sql" />
     <Build Include="StoredProcedures\sprALocation.StoredProcedure.sql" />
     <Build Include="StoredProcedures\sprSearchFromSavedImages.sql" />
+    <Build Include="StoredProcedures\sprGetFlickrPhotoById.sql" />
+    <Build Include="StoredProcedures\sprDeleteFlickrPhotoById.sql" />
   </ItemGroup>
   <ItemGroup>
     <RefactorLog Include="APITestData.refactorlog" />

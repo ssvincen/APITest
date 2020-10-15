@@ -30,14 +30,14 @@ namespace APITest.BI
                     foreach (var item in rootPhotos.photos.photo)
                     {
                         await SavePhotosAsync(item, name, 0, 0, userId);
-                    }                    
-                    return displayImages(rootPhotos.photos.photo);                    
+                    }
+                    return displayImages(rootPhotos.photos.photo);
                 }
                 return displayImage;
             }
         }
 
-      
+
 
         public async Task<IEnumerable<DisplayImage>> GetFlickrImagesByLatLong(float latitude, float longitude, string userId)
         {
@@ -53,7 +53,7 @@ namespace APITest.BI
                     {
                         await SavePhotosAsync(item, null, latitude, longitude, userId);
                     }
-                    return displayImages(rootPhotos.photos.photo);                    
+                    return displayImages(rootPhotos.photos.photo);
                 }
                 return displayImage;
             }
@@ -79,21 +79,6 @@ namespace APITest.BI
         }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         private List<DisplayImage> displayImages(IEnumerable<Photo> photos)
         {
             List<DisplayImage> displayImage = new List<DisplayImage>();
@@ -102,7 +87,7 @@ namespace APITest.BI
                 Uri image = new Uri($"https://farm{item.farm}.staticflickr.com/{item.server}/{item.id}_{item.secret}.jpg");
                 displayImage.Add(new DisplayImage { id = item.id, title = item.title, Image = image });
             }
-            return displayImage;            
+            return displayImage;
         }
 
         private async Task<int> SavePhotosAsync(Photo photo, string name, float Latitude, float Longitude, string userId)
@@ -116,7 +101,7 @@ namespace APITest.BI
             param.Add("@title", dbType: DbType.String, value: photo.title);
             param.Add("@ispublic", dbType: DbType.String, value: photo.ispublic);
             param.Add("@isfriend", dbType: DbType.String, value: photo.isfriend);
-            param.Add("@isfamily", dbType: DbType.String, value: photo.isfamily); 
+            param.Add("@isfamily", dbType: DbType.String, value: photo.isfamily);
             param.Add("@SearchName", dbType: DbType.String, value: name);
             param.Add("@UserId", dbType: DbType.String, value: userId);
             param.Add("@Latitude", dbType: DbType.String, value: Latitude);
@@ -124,7 +109,7 @@ namespace APITest.BI
 
             using (var db = connectionManager.DefaultConnection())
             {
-                return await db.QueryFirstOrDefaultAsync<int>("dbo.sprSaveFlickrPhoto", commandType: CommandType.StoredProcedure, param: param);
+                return await db.QueryFirstOrDefaultAsync<int>("dbo.sprUpSertFlickrPhoto", commandType: CommandType.StoredProcedure, param: param);
             }
         }
 
@@ -140,6 +125,30 @@ namespace APITest.BI
             return PhotoId;
         }
 
-        
+        public async Task<bool> DeleteFlickrPhotoAsync(string userId, int id)
+        {
+            var param = new DynamicParameters();
+            param.Add("@Id", dbType: DbType.Int32, value: id, direction: ParameterDirection.Input);
+            param.Add("@UserId", dbType: DbType.String, value: userId, direction: ParameterDirection.Input);
+            using (var db = connectionManager.DefaultConnection())
+            {
+                return await db.QueryFirstOrDefaultAsync<bool>("dbo.sprDeleteFlickrPhotoById", commandType: CommandType.StoredProcedure, param: param);
+            }
+        }
+
+        public async Task<Photo> GetPhotoById(int id)
+        {
+            var param = new DynamicParameters();
+            param.Add("@Id", dbType: DbType.Int32, value: id, direction: ParameterDirection.Input);
+            using (var db = connectionManager.DefaultConnection())
+            {
+                return await db.QueryFirstOrDefaultAsync<Photo>("dbo.sprGetFlickrPhotoById", commandType: CommandType.StoredProcedure, param: param);
+            }
+        }
+
+        public Task<bool> DeleteFlickrPhotosBySearchNameAsync(string userId, string searchName)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

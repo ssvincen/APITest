@@ -52,6 +52,8 @@
     <Compile Include="FlickrImages\FlickrImagesDataAccess.cs" />
     <Compile Include="FlickrImages\IFlickrImagesDataAccess.cs" />
     <Compile Include="IConnectionManager.cs" />
+    <Compile Include="NotificationProviders\EmailProvider.cs" />
+    <Compile Include="NotificationProviders\IEmailProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
