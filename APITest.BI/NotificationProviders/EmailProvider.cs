@@ -18,7 +18,7 @@ namespace APITest.BI
                 {
                     MailMessage mailMessage = new MailMessage();
                     mailMessage.To.Add(destination);
-                    mailMessage.From = new MailAddress(email, "Call Login");
+                    mailMessage.From = new MailAddress(email, "Email Confirmation");
                     mailMessage.Subject = subject;
                     mailMessage.Body = body;
                     mailMessage.IsBodyHtml = true;
